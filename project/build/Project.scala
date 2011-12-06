@@ -18,6 +18,8 @@ class LiftProject(info: ProjectInfo) extends DefaultWebProject(info) {
   
   val squeryl = "net.liftweb" %% "lift-squeryl-record" % liftVersion
   val postgresql = "postgresql" % "postgresql" % "9.0-801.jdbc4"
+
+  val bonecp = "com.jolbox" % "bonecp" % "0.7.1.RELEASE" % "compile->default"
   
   /**
    * Maven repositories

@@ -5,14 +5,15 @@ import net.liftweb.sitemap.{SiteMap, Menu, Loc}
 import net.liftweb.util.{ NamedPF, Props, LoanWrapper }
 import net.liftweb.squerylrecord.SquerylRecord
 import net.liftweb.squerylrecord.RecordTypeMode._
-import net.liftweb.common.Logger
+import net.liftweb.common.{Box, Full, Empty, Logger}
 
 import org.squeryl.adapters.PostgreSqlAdapter
 import org.squeryl.Session
 
-import com.dmp.model.MySchema
+import com.jolbox.bonecp.BoneCP
+import com.jolbox.bonecp.BoneCPConfig
 
-import java.sql.DriverManager
+import com.dmp.model.MySchema
 
 /**
  * User: dmp
@@ -22,13 +23,10 @@ import java.sql.DriverManager
 
 class Boot {
   def boot {
-    Class.forName("org.postgresql.Driver")
-
-     // Setup DB
+    // Setup DB access.
     SquerylRecord.initWithSquerylSession({
-      val session = Session.create(
-        DriverManager.getConnection("jdbc:postgresql://localhost/dmp-record", "lift", "liftweb"),
-        new PostgreSqlAdapter)
+      // Retrieve connection from pool
+      val session = ConnectionPool.getSession
       session.setLogger(sql => Logger("SqlLog:").debug(sql))
       session
     })
@@ -58,7 +56,7 @@ class Boot {
 
 
 
-    // wrap all requests in squeryl transaction
+    // wrap all web requests in squeryl transaction
     S.addAround(new LoanWrapper{
       override def apply[T](f: => T): T = {
     	  inTransaction{
@@ -66,5 +64,33 @@ class Boot {
     	  }
       }
     })
+  }
+}
+
+/**
+ * Connection pool using BoneCP
+ */
+object ConnectionPool {
+  var pool: Box[BoneCP] = Empty
+
+  try {
+    Class.forName(Props.get("db.driver").openOr(""))
+
+    val config = new BoneCPConfig
+    config.setJdbcUrl(Props.get("db.url").openOr(""))
+    config.setUsername(Props.get("db.user").openOr(""))
+    config.setPassword(Props.get("db.pass").openOr(""))
+    config.setMinConnectionsPerPartition(5);
+    config.setMaxConnectionsPerPartition(10);
+    config.setPartitionCount(1);
+
+    pool = Full(new BoneCP(config))
+  } catch{
+    case e : Exception => e.printStackTrace
+    println("BoneCP - FAILED to initialize the connection pool")
+  }
+
+  def getSession: Session = {
+    Session.create(pool.open_!.getConnection, new PostgreSqlAdapter)
   }
 }

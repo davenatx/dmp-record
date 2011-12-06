@@ -1,4 +1,4 @@
-#db.class=org.postgresql.Driver
-#db.url=jdbc:postgresql://localhost/dmp-record
-#db.user=lift
-#db.pass=liftweb
+db.driver=org.postgresql.Driver
+db.url=jdbc:postgresql://localhost/dmp-record
+db.user=lift
+db.pass=liftweb
